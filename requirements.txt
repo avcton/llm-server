@@ -1,5 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cu128
 
+fastapi==0.116.1
 dynaconf==3.2.11
 accelerate==1.10.0
 protobuf==6.32.0
