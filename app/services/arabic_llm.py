@@ -92,8 +92,8 @@ class ALLaMService:
         
         # Ensure only one generation at a time
         async with self._lock:
-            # Launch generation in background
-            asyncio.create_task(self._run_generate(generation_kwargs))
+            # Run generate() in a thread (non-blocking)
+            gen_task = asyncio.create_task(self._run_generate(generation_kwargs))
 
             # Async iterate tokens
             response_text = ""
@@ -111,10 +111,23 @@ class ALLaMService:
         await asyncio.to_thread(self._model.generate, **generation_kwargs)
         
     async def _consume_stream(self, streamer: TextIteratorStreamer):
-        """Async wrapper over the sync streamer iterator"""
-        for token in streamer:
+        """
+        Convert the sync streamer into async generator by polling
+        until streamer finishes.
+        """
+        loop = asyncio.get_running_loop()
+
+        def get_next():
+            try:
+                return next(streamer)
+            except StopIteration:
+                return None
+
+        while True:
+            token = await loop.run_in_executor(None, get_next)
+            if token is None:
+                break
             yield token
-            await asyncio.sleep(0)  # Let event loop breathe
     
     def reset_history(self):
         """Clear conversation memory"""
