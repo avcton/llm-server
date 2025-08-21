@@ -1,6 +1,5 @@
 import torch
 import asyncio
-import threading
 from typing import List, Dict, AsyncGenerator
 from transformers import (
     AutoModelForCausalLM,
@@ -24,6 +23,7 @@ class ALLaMService:
     # Lifecycle
     # -------------------
     def load_model(self):
+        """Load model and tokenizer into memory"""
         if self._model is None:
             print("Loading ALLaM model...")
             self._model = AutoModelForCausalLM.from_pretrained(
@@ -93,7 +93,7 @@ class ALLaMService:
         # Ensure only one generation at a time
         async with self._lock:
             # Run generate() in a thread (non-blocking)
-            gen_task = asyncio.create_task(self._run_generate(generation_kwargs))
+            asyncio.create_task(self._run_generate(generation_kwargs))
 
             # Async iterate tokens
             response_text = ""
