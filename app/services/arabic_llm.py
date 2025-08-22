@@ -15,15 +15,13 @@ class ALLaMService:
     def __init__(self):
         self._model: AutoModelForCausalLM = None
         self._tokenizer: AutoTokenizer = None
-        # store conversation history (can also key by user/session ID)
-        self._history: List[Dict[str, str]] = []
         self._lock = asyncio.Lock()
 
     # -------------------
     # Lifecycle
     # -------------------
     def load_model(self):
-        """Load model and tokenizer into memory"""
+        """Load model and tokenizer into memory."""
         if self._model is None:
             print("Loading ALLaM model...")
             self._model = AutoModelForCausalLM.from_pretrained(
@@ -50,19 +48,13 @@ class ALLaMService:
     # -------------------
     # Conversation
     # -------------------
-    async def converse(self, user_message: str) -> AsyncGenerator[str, None]:
-        """
-        Converse with the model. Maintains context across turns.
-        Async generator that yields tokens one by one.
-        """
+    async def converse(self, history: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
+        """Converse with the model. Async generator that yields tokens one by one."""
         self.load_model()  # Ensure model/tokenizer are loaded
-
-        # Add user input to history
-        self._history.append({"role": "user", "content": user_message})
 
         # Format conversation into a chat template
         inputs_text = self._tokenizer.apply_chat_template(
-            self._history,
+            history,
             tokenize=False,
             add_generation_prompt=True
         )
@@ -89,7 +81,7 @@ class ALLaMService:
             temperature=0.6,
             streamer=streamer
         )
-        
+
         # Ensure only one generation at a time
         async with self._lock:
             # Run generate() in a thread (non-blocking)
@@ -101,20 +93,15 @@ class ALLaMService:
                 response_text += token
                 yield token
 
-            self._history.append({"role": "assistant", "content": response_text.strip()})
-
     # -------------------
     # Utilities
     # -------------------
     async def _run_generate(self, generation_kwargs: dict):
-        """Run blocking generate() in background thread"""
+        """Run blocking generate() in background thread."""
         await asyncio.to_thread(self._model.generate, **generation_kwargs)
-        
+
     async def _consume_stream(self, streamer: TextIteratorStreamer):
-        """
-        Convert the sync streamer into async generator by polling
-        until streamer finishes.
-        """
+        """Convert the sync streamer into async generator by polling until streamer finishes."""
         loop = asyncio.get_running_loop()
 
         def get_next():
@@ -128,10 +115,3 @@ class ALLaMService:
             if token is None:
                 break
             yield token
-    
-    def reset_history(self):
-        """Clear conversation memory"""
-        self._history = []
-
-    def get_history(self) -> List[Dict[str, str]]:
-        return self._history
