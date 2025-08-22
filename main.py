@@ -15,8 +15,8 @@ async def lifespan(fastapi_app: FastAPI):
 
     # Shutdown tasks
     allam_service.unload_model()
-    
-    
+
+
 app = FastAPI(lifespan=lifespan)
 allam_service = ALLaMService()
 
@@ -31,10 +31,10 @@ async def create_chat_completion(request: ChatCompletionRequest):
     if request.stream:
         async def event_stream():
             try:
-                async for token in allam_service.converse(request.messages):
+                async for token in allam_service.converse(request.messages, request.temperature, request.max_tokens):
                     # OpenAI-style chunk
                     chunk = {
-                        "id": "chatcmpl-12345",   # you can generate real UUIDs if you like
+                        "id": "chatcmpl-12345",   # we can generate real UUIDs later
                         "object": "chat.completion.chunk",
                         "created": 1690000000,
                         "model": request.model,
@@ -50,7 +50,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
 
                 # End of stream
                 yield "data: [DONE]\n\n"
-                
+
             except Exception as e:
                 print(f"Error during streaming: {e}")
                 err = {"error": {"message": str(e)}}
@@ -61,7 +61,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
     # NON-STREAMING MODE
     else:
         response_text = ""
-        async for token in allam_service.converse(request.messages):
+        async for token in allam_service.converse(request.messages, request.temperature, request.max_tokens):
             response_text += token
 
         completion = {
@@ -80,7 +80,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
                 }
             ],
             "usage": {
-                "prompt_tokens": None,   # you can compute if needed
+                "prompt_tokens": None,   # we can compute if needed
                 "completion_tokens": None,
                 "total_tokens": None,
             },

@@ -48,7 +48,7 @@ class ALLaMService:
     # -------------------
     # Conversation
     # -------------------
-    async def converse(self, history: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
+    async def converse(self, history: List[Dict[str, str]], temperature: float, max_tokens: int) -> AsyncGenerator[str, None]:
         """Converse with the model. Async generator that yields tokens one by one."""
         self.load_model()  # Ensure model/tokenizer are loaded
 
@@ -74,11 +74,11 @@ class ALLaMService:
 
         generation_kwargs = dict(
             **inputs,
-            max_new_tokens=1024,
+            max_new_tokens=max_tokens,
             do_sample=True,
             top_k=50,
             top_p=0.95,
-            temperature=0.6,
+            temperature=temperature,
             streamer=streamer
         )
 
