@@ -22,9 +22,6 @@ allam_service = ALLaMService()
 @app.post("/chat")
 async def chat(user_message: str = Body(...)):
     """Handle chat requests by streaming responses from the ALLaMService."""
-    async def token_stream():
-        async for token in allam_service.converse(user_message):
-            print("Yielding token:", token)
-            yield token  # Stream tokens to client
+    response = allam_service.converse(user_message)
 
-    return StreamingResponse(token_stream(), media_type="text/plain")
+    return StreamingResponse(response, media_type="text/plain")
