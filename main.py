@@ -53,7 +53,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
                         ],
                     }
                     yield f"data: {json.dumps(chunk)}\n\n"
-                    print("Yielded:", token, end=" ")  # Debugging line
+                    print("Yielded:", token)  # Debugging line
 
                 # End of stream
                 yield "data: [DONE]\n\n"
