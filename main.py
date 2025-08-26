@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi.responses import StreamingResponse
 from app.services.arabic_llm import ALLaMService
 from app.validators.api_request import ChatCompletionRequest
+from app.utils.messages import enforce_alternating_roles 
 
 
 @asynccontextmanager
@@ -27,11 +28,16 @@ async def create_chat_completion(request: ChatCompletionRequest):
     OpenAI-compatible Chat Completions endpoint.
     Supports both streaming and non-streaming modes.
     """
+    
+    refined_messages = enforce_alternating_roles(request.messages)
+    
+    print('\n', json.dumps([m.model_dump() for m in refined_messages], indent=2, ensure_ascii=False))  # Debugging line
+    
     # STREAMING MODE
     if request.stream:
         async def event_stream():
             try:
-                async for token in allam_service.converse(request.messages, request.temperature, request.max_tokens):
+                async for token in allam_service.converse(refined_messages, request.temperature, request.max_tokens):
                     # OpenAI-style chunk
                     chunk = {
                         "id": "chatcmpl-12345",   # we can generate real UUIDs later
@@ -47,6 +53,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
                         ],
                     }
                     yield f"data: {json.dumps(chunk)}\n\n"
+                    print("Yielded:", token, end=" ")  # Debugging line
 
                 # End of stream
                 yield "data: [DONE]\n\n"
@@ -61,7 +68,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
     # NON-STREAMING MODE
     else:
         response_text = ""
-        async for token in allam_service.converse(request.messages, request.temperature, request.max_tokens):
+        async for token in allam_service.converse(refined_messages, request.temperature, request.max_tokens):
             response_text += token
 
         completion = {
